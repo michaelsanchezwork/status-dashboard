@@ -1,0 +1,124 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Status Dashboard</title>
+    <style>
+      #notesList { padding-left: 18px; }
+      #notesList li { margin: 6px 0; }
+      #notesMeta { margin: 6px 0 10px; color: #555; }
+      body { font-family: system-ui, sans-serif; margin: 32px; max-width: 900px; }
+      pre { background: #f6f6f6; padding: 12px; border-radius: 10px; overflow: auto; }
+      input { padding: 8px; width: 420px; }
+      button { padding: 8px 12px; }
+      .row { display: flex; gap: 8px; align-items: center; }
+    </style>
+  </head>
+  <body>
+    <h1>Status Dashboard</h1>
+
+    <h2>Health</h2>
+    <pre id="out">Loading...</pre>
+
+    <h2>Notes</h2>
+    <div class="row">
+      <input id="noteText" placeholder="Add a note..." />
+      <button id="addBtn">Add</button>
+      <span id="noteStatus"></span>
+    </div>
+    <div id="notesMeta"></div>
+    <u1 id="notesList"></u1>
+
+    <script>
+      async function loadHealth() {
+        const res = await fetch("/api/health");
+        const data = await res.json();
+        document.getElementById("out").textContent = JSON.stringify(data, null, 2);
+      }
+
+      async function loadNotes() {
+        const res = await fetch("/api/notes");
+        const notes = await res.json();
+
+        // newest first
+        notes.reverse();
+
+        const list = document.getElementById("notesList");
+        const meta = document.getElementById("notesMeta");
+
+        list.innerHTML = "";
+
+        if (meta) meta.textContent = `${notes.length} note(s)`;
+
+        for (const n of notes) {
+          const li = document.createElement("li");
+
+          const when = n.created ? new Date(n.created).toLocaleString() : "";
+
+          const label = document.createElement("span");
+          label.textContent = `${when} — ${n.text}`;
+          li.appendChild(label);
+
+          if (n.id) {
+            const btn = document.createElement("button");
+            btn.textContent = "Delete";
+	    btn.style.marginLeft = "10px";
+
+	    btn.addEventListener("click", async () => {
+      	      await fetch(`/api/notes/${n.id}`, { method: "DELETE" });
+      	      await loadNotes();
+   	    });
+
+	    li.appendChild(btn);
+  	  }
+
+	  list.appendChild(li);
+        }
+        if (notes.length === 0) {
+          const li = document.createElement("li");
+          li.textContent = "(No notes yet)";
+          list.appendChild(li);
+        }
+      }
+      async function addNote() {
+        const statusEl = document.getElementById("noteStatus");
+        const input = document.getElementById("noteText");
+        const text = input.value.trim();
+        if (!text) return;
+
+        statusEl.textContent = "Saving...";
+        const res = await fetch("/api/notes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text })
+        });
+
+        if (!res.ok) {
+          statusEl.textContent = "Error saving note";
+          return;
+        }
+
+        input.value = "";
+        statusEl.textContent = "Saved";
+        await loadNotes();
+        setTimeout(() => statusEl.textContent = "", 1000);
+      }
+
+      document.getElementById("addBtn").addEventListener("click", addNote);
+      document.getElementById("noteText").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") addNote();
+      });
+
+      loadHealth().catch(err => document.getElementById("out").textContent = String(err));
+      loadNotes().catch(err => document.getElementById("notesList").textContent = "Notes error: " +  String(err));
+      // Auto-refresh (ms)
+      setInterval(() => loadHealth().catch(err => {
+        document.getElementById("out").textContent = String(err);
+      }), 10000);
+
+      setInterval(() => loadNotes().catch(err => {
+        document.getElementById("notesList").textContent = "Notes error: " +  String(err);
+      }), 30000);
+    </script>
+  </body>
+</html>

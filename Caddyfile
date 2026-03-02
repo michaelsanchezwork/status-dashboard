@@ -1,0 +1,33 @@
+:80 {
+
+  # API (strip /api)
+  handle_path /api/* {
+    reverse_proxy status:8000
+  }
+
+  # Grafana (do NOT strip /grafana)
+  handle /grafana/* {
+    reverse_proxy grafana:3000
+  }
+
+  # Prometheus (strip /prometheus; Prometheus is configured for the prefix)
+  handle /prometheus/* {
+    reverse_proxy prometheus:9090
+  }
+
+  # Dozzle (strip /dozzle so it behaves like it's at /)
+  handle /dozzle/* {
+    reverse_proxy dozzle:8080
+  }
+
+  # Static UI
+  handle {
+    root * /srv
+    file_server
+  }
+
+  log {
+    output stdout
+    format console
+  }
+}
