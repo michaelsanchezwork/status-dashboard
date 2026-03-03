@@ -1,8 +1,6 @@
-# Local runtime data
+actions-runner/
 logs/
 data/
-*.log
-
-# Python cache
 __pycache__/
 *.pyc
+.env
